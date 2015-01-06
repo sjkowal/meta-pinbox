@@ -1,0 +1,37 @@
+diff -rupN '--exclude=*~' '--exclude=.git' original/setup.py new/setup.py
+--- original/setup.py	2015-01-01 14:50:56.037513535 -0600
++++ new/setup.py	2015-01-05 23:26:25.675952052 -0600
+@@ -1,10 +1,14 @@
+ # To run pyprocgame under Snow Leopard when libs are compiled 32-bit: export VERSIONER_PYTHON_PREFER_32_BIT=yes
+ 
+-# From: http://superjared.com/entry/anatomy-python-c-module/
+ from distutils.core import setup, Extension
+ import os
+-import sys
++import commands
+ 
++def pkgconfig(*packages, **kw):
++    flag_map = {'-I': 'include_dirs', '-L': 'library_dirs', '-l': 'libraries'}
++    for token in commands.getoutput("pkg-config --libs --cflags %s" % ' '.join(packages)).split():
++        kw.setdefault(flag_map.get(token[:2]), []).append(token[2:])
++    return kw
+ 
+ extra_compile_args = ['-O0', '-g']
+ extra_compile_args.append('-Wno-write-strings') # fix "warning: deprecated conversion from string constant to 'char*'"
+@@ -17,12 +21,10 @@ if 'ARCH' in os.environ:
+ 	extra_link_args += ['-arch', os.environ['ARCH']]
+ 
+ module1 = Extension("pinproc",
+-					include_dirs = ['../libpinproc/include'],
+-					libraries = ['usb', 'ftdi1', 'pinproc'],
+-					library_dirs = ['/usr/local/lib', '../libpinproc/bin'],
+-					extra_compile_args = extra_compile_args,
+-					extra_link_args = extra_link_args,
+-					sources = ['pypinproc.cpp', 'dmdutil.cpp', 'dmd.c'])
++        extra_compile_args = extra_compile_args,
++        extra_link_args = extra_link_args,
++        sources = ['pypinproc.cpp', 'dmdutil.cpp', 'dmd.c'],
++        **pkgconfig('pinproc') )
+ 
+ setup(name = "pinproc",
+       version = "2.0",

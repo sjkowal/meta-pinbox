@@ -1,0 +1,270 @@
+diff -rupN '--exclude=*~' '--exclude=.git' original/cmake/Modules/FindFTDI.cmake new/cmake/Modules/FindFTDI.cmake
+--- original/cmake/Modules/FindFTDI.cmake	1969-12-31 18:00:00.000000000 -0600
++++ new/cmake/Modules/FindFTDI.cmake	2014-12-29 15:30:32.587503379 -0600
+@@ -0,0 +1,21 @@
++IF (NOT WIN32)
++    find_package(PkgConfig)
++    pkg_search_module(PC_LIBFTDI libftdi libftdi1)
++ENDIF(NOT WIN32)
++
++FIND_PATH(LIBFTDI_INCLUDE_DIR NAMES ftdi.h libftdi/ftdi.h libftdi1/ftdi.h
++    HINTS ${PC_LIBFTDI_INCLUDEDIR} ${PC_LIBFTDIL_INCLUDE_DIRS}
++    PATH_SUFFIXES libftdi libftdi1 )
++
++FIND_LIBRARY(LIBFTDI_LIBRARY NAMES ftdi ftdi1 
++    HINTS ${PC_LIBFTDI_LIBDIR} ${PC_LIBFTDI_LIBRARY_DIRS})
++
++set(LIBFTDI_LIBRARIES ${LIBFTDI_LIBRARY} )
++set(LIBFTDI_INCLUDE_DIRS ${LIBFTDI_INCLUDE_DIR} )
++
++include(FindPackageHandleStandardArgs)
++
++FIND_PACKAGE_HANDLE_STANDARD_ARGS(LIBFTDI DEFAULT_MSG LIBFTDI_LIBRARIES LIBFTDI_INCLUDE_DIR)
++
++MARK_AS_ADVANCED(LIBFTDI_INCLUDE_DIR LIBFTDI_LIBRARIES)
++
+diff -rupN '--exclude=*~' '--exclude=.git' original/cmake/Modules/FindUSB.cmake new/cmake/Modules/FindUSB.cmake
+--- original/cmake/Modules/FindUSB.cmake	1969-12-31 18:00:00.000000000 -0600
++++ new/cmake/Modules/FindUSB.cmake	2014-12-29 15:33:48.635507699 -0600
+@@ -0,0 +1,21 @@
++IF (NOT WIN32)
++    find_package(PkgConfig)
++    pkg_check_modules(PC_LIBUSB libusb)
++ENDIF(NOT WIN32)
++
++FIND_PATH(LIBUSB_INCLUDE_DIR usb.h 
++    HINTS ${PC_LIBUSB_INCLUDEDIR} ${PC_LIBLUSB_INCLUDE_DIRS}
++    )
++
++FIND_LIBRARY(LIBUSB_LIBRARY usb 
++    HINTS ${PC_LIBUSB_LIBDIR} ${PC_LIBUSB_LIBRARY_DIRS})
++
++set(LIBUSB_LIBRARIES ${LIBUSB_LIBRARY} )
++set(LIBUSB_INCLUDE_DIRS ${LIBUSB_INCLUDE_DIR} )
++
++include(FindPackageHandleStandardArgs)
++
++FIND_PACKAGE_HANDLE_STANDARD_ARGS(LIBUSB DEFAULT_MSG LIBUSB_LIBRARIES LIBUSB_INCLUDE_DIR)
++
++MARK_AS_ADVANCED(LIBUSB_INCLUDE_DIR LIBUSB_LIBRARIES)
++
+diff -rupN '--exclude=*~' '--exclude=.git' original/CMakeLists.txt new/CMakeLists.txt
+--- original/CMakeLists.txt	2014-12-29 11:38:26.447196547 -0600
++++ new/CMakeLists.txt	2015-01-01 08:39:27.224800291 -0600
+@@ -14,6 +14,8 @@ if(POLICY CMP0015)
+ endif()
+ 
+ 
++MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
++
+ ###
+ ### Project settings
+ ###
+@@ -69,8 +71,8 @@ if(VERBOSE)
+ endif()
+ 
+ # use -DEXTRA_INC="<path>;<path>" and -DEXTRA_LINK="<path>;<path>"
+-include_directories(${PINPROC_SOURCE_DIR}/include ${EXTRA_INC} /usr/local/include)
+-link_directories(${EXTRA_LINK} /usr/local/lib)
++include_directories(${PINPROC_SOURCE_DIR}/include ${EXTRA_INC})
++link_directories(${EXTRA_LINK})
+ 
+ set(YAML_CPP_LIB "yaml-cpp")
+ set(YAML_CPP_LIB_DBG "${YAML_CPP_LIB}")
+@@ -79,7 +81,10 @@ set(YAML_CPP_LIB_DBG "${YAML_CPP_LIB}")
+ ###
+ ### General compilation settings
+ ###
++set(LIB_TYPE)
++
+ if(BUILD_SHARED_LIBS)
++    set(LIB_TYPE SHARED)
+ 	set(LABEL_SUFFIX "shared")
+ else()
+ 	set(LABEL_SUFFIX "static")
+@@ -92,7 +97,7 @@ if(APPLE)
+ endif()
+ 
+ if(WIN32)
+-	set(lib_ftdi_usb ftd2xx)
++    set(LIBS ${LIBS} ftd2xx)
+ 	if(BUILD_SHARED_LIBS)
+ 		add_definitions(-D${PROJECT_NAME}_DLL)	# use or build Windows DLL
+ 	endif()
+@@ -100,7 +105,21 @@ if(WIN32)
+ 		set(CMAKE_INSTALL_PREFIX "C:/")
+ 	endif()
+ else()
+-	set(lib_ftdi_usb usb ftdi1)
++    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules")
++    
++    MESSAGE(STATUS "Module Path: ${CMAKE_MODULE_PATH}")
++
++    find_package(USB REQUIRED)
++    include_directories(${LIBUSB_INCLUDE_DIRS})
++    MESSAGE(STATUS "USB include dirs: ${LIBUSB_INCLUDE_DIRS}")
++    MESSAGE(STATUS "USB LIB dirs: ${LIBUSB_LIBRARIES}")
++    set(LIBS ${LIBS} ${LIBUSB_LIBRARIES})
++
++    find_package(FTDI REQUIRED)
++    MESSAGE(STATUS "FTDI include dirs: ${LIBFTDI_INCLUDE_DIRS}")
++    MESSAGE(STATUS "FTDI LIB dirs: ${LIBFTDI_LIBRARIES}")
++    include_directories(${LIBFTDI_INCLUDE_DIRS})
++    set(LIBS ${LIBS} ${LIBFTDI_LIBRARIES})
+ endif()
+ 
+ # GCC specialities
+@@ -153,6 +172,7 @@ if(MSVC)
+ 
+ 	# c) Correct suffixes for static libraries
+ 	if(NOT BUILD_SHARED_LIBS)
++
+ 		### General stuff
+ 		set(LIB_TARGET_SUFFIX "${LIB_SUFFIX}${LIB_RT_SUFFIX}")
+ 
+@@ -161,6 +181,10 @@ if(MSVC)
+ 		set(YAML_CPP_LIB "${CMAKE_STATIC_LIBRARY_PREFIX}${YAML_CPP_LIB}${LIB_RT_SUFFIX}")
+ 		set(YAML_CPP_LIB_DBG "${YAML_CPP_LIB}d")
+ 	endif()
++
++    # I can't figure out how CMake handles Windows shared libraries
++    # re-set the LIB_TYPE back to nothing
++    set(LIB_TYPE)
+ endif()
+ 
+ 
+@@ -174,12 +198,12 @@ else()
+ endif()
+ 
+ set(INCLUDE_INSTALL_DIR include/p-roc)
+-set(LIB_INSTALL_DIR "${_library_dir}${LIB_SUFFIX}")
++set(LIB_INSTALL_DIR ${_library_dir}${LIB_SUFFIX})
+ 
+ set(_INSTALL_DESTINATIONS
+ 	RUNTIME DESTINATION bin
+ 	LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+-	ARCHIVE DESTINATION "lib${LIB_SUFFIX}"
++	ARCHIVE DESTINATION lib${LIB_SUFFIX}
+ )
+ 
+ 
+@@ -187,9 +211,10 @@ set(_INSTALL_DESTINATIONS
+ ### Library
+ ###
+ add_library(pinproc
+-	${sources}
++    ${LIB_TYPE}
+ 	${public_headers}
+ 	${private_headers}
++	${sources}
+ 	${defs}
+ )
+ 
+@@ -200,7 +225,7 @@ set_target_properties(pinproc PROPERTIES
+ )
+ 
+ target_link_libraries(pinproc
+-	${lib_ftdi_usb}
++    ${LIBS}
+ )
+ 
+ if(MSVC)
+@@ -232,30 +257,30 @@ endif()
+ ### Extras
+ ###
+ if(PINPROC_BUILD_TOOLS)
+-# Create a target for the test tool
+-#TODO: use add_subdirectory() and separate CMakeLists.txt (like yaml-cpp)
+-#      see http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_subdirectory
+-add_executable(pinproctest
+-	examples/pinproctest/pinproctest.cpp
+-	examples/pinproctest/drivers.cpp
+-	examples/pinproctest/dmd.cpp
+-	examples/pinproctest/switches.cpp
+-	examples/pinproctest/alphanumeric.cpp
+-)
+-target_link_libraries(pinproctest
+-	pinproc
+-	optimized ${YAML_CPP_LIB}
+-	debug ${YAML_CPP_LIB_DBG}
+-)
+-
+-# Create a target for the firmware tool
+-#TODO: use add_subdirectory() and separate CMakeLists.txt (like yaml-cpp)
+-#      see http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_subdirectory
+-add_executable(pinprocfw
+-	utils/pinprocfw/pinprocfw.cpp
+-	utils/pinprocfw/lenval.cpp
+-)
+-target_link_libraries(pinprocfw
+-	pinproc
+-)
++    # Create a target for the test tool
++    #TODO: use add_subdirectory() and separate CMakeLists.txt (like yaml-cpp)
++    #      see http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_subdirectory
++    add_executable(pinproctest
++        examples/pinproctest/pinproctest.cpp
++        examples/pinproctest/drivers.cpp
++        examples/pinproctest/dmd.cpp
++        examples/pinproctest/switches.cpp
++        examples/pinproctest/alphanumeric.cpp
++        )
++    target_link_libraries(pinproctest
++        pinproc
++        optimized ${YAML_CPP_LIB}
++        debug ${YAML_CPP_LIB_DBG}
++        )
++
++    # Create a target for the firmware tool
++    #TODO: use add_subdirectory() and separate CMakeLists.txt (like yaml-cpp)
++    #      see http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_subdirectory
++    add_executable(pinprocfw
++        utils/pinprocfw/pinprocfw.cpp
++        utils/pinprocfw/lenval.cpp
++        )
++    target_link_libraries(pinprocfw
++        pinproc
++        )
+ endif()
+diff -rupN '--exclude=*~' '--exclude=.git' original/src/PRCommon.h new/src/PRCommon.h
+--- original/src/PRCommon.h	2014-12-29 11:38:26.447196547 -0600
++++ new/src/PRCommon.h	2014-12-29 11:26:43.859181067 -0600
+@@ -37,6 +37,4 @@
+ void PRLog(PRLogLevel level, const char *format, ...);
+ void PRSetLastErrorText(const char *format, ...);
+ 
+-#define NULL 0
+-
+ #endif /* PINPROC_PRCOMMON_H */
+diff -rupN '--exclude=*~' '--exclude=.git' original/src/PRHardware.cpp new/src/PRHardware.cpp
+--- original/src/PRHardware.cpp	2014-12-29 11:38:26.447196547 -0600
++++ new/src/PRHardware.cpp	2014-12-29 15:08:03.743473660 -0600
+@@ -28,7 +28,7 @@
+  *  libpinproc
+  */
+ 
+-
++#include <iostream>
+ #include "PRHardware.h"
+ #include "PRCommon.h"
+ 
+diff -rupN '--exclude=*~' '--exclude=.git' original/utils/pinprocfw/pinprocfw.cpp new/utils/pinprocfw/pinprocfw.cpp
+--- original/utils/pinprocfw/pinprocfw.cpp	2014-12-29 11:38:26.447196547 -0600
++++ new/utils/pinprocfw/pinprocfw.cpp	2014-12-29 11:35:47.807193052 -0600
+@@ -2188,12 +2188,12 @@ int checkPROCFile() {
+ 
+     // Check for valid board ID and rev
+     if (board_id != file_board_id) {
+-        fprintf(stderr, "\nERROR: board type mismatch.", board_id);
++        fprintf(stderr, "\nERROR: board type mismatch. (file_board_id: %x) != (board_id: %x)", file_board_id, board_id);
+         if (board_id == P_ROC_CHIP_ID && file_board_id == P3_ROC_CHIP_ID)
+-            fprintf(stderr, "\nCannot program a P3-ROC image onto a P-ROC\n\n", file_board_id, board_id);
++            fprintf(stderr, "\nCannot program a P3-ROC image onto a P-ROC.");
+         else if (board_id == P3_ROC_CHIP_ID && file_board_id == P_ROC_CHIP_ID)
+-            fprintf(stderr, "\nCannot program a P-ROC image onto a P3-ROC\n\n", file_board_id, board_id);
+-        else fprintf(stderr, "\nBoard and image are incompatible\n\n", file_board_id, board_id);
++            fprintf(stderr, "\nCannot program a P-ROC image onto a P3-ROC.");
++        else fprintf(stderr, "\nBoard and image are incompatible.\n\n");
+         return 0;
+     }
+     else fprintf(stderr, "\nBoard ID verified");
