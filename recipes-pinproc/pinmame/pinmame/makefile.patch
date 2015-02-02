@@ -1,0 +1,77 @@
+diff -rupN '--exclude=*~' '--exclude=.git' original/makefile.unix new/makefile.unix
+--- original/makefile.unix	2015-01-08 22:37:46.344153065 -0600
++++ new/makefile.unix	2015-01-08 22:35:50.392149355 -0600
+@@ -105,7 +105,7 @@ CPP    = g++
+ 
+ # If you want to use whatever CFLAGS are currently set in your 
+ # environment, then comment this out.
+-CFLAGS =
++# CFLAGS =
+ 
+ 
+ ###########################################################################
+@@ -113,7 +113,7 @@ CFLAGS =
+ # this section.
+ ###########################################################################
+ 
+-CFLAGS = -fomit-frame-pointer -Wall -Wno-unused
++CFLAGS += -fomit-frame-pointer -Wall -Wno-unused
+ 
+ # gcc on x86 with some optimizations
+ # CFLAGS = -O2 -Wall -Wno-unused -mcpu=i686 -fomit-frame-pointer \
+@@ -256,7 +256,7 @@ CFLAGS += -funroll-loops
+   # CFLAGS += -march=athlon
+   # CFLAGS += -march=athlon-tbird
+ #### CFLAGS += -march=athlon-xp
+-  CFLAGS += -march=athlon64
++  # CFLAGS += -march=athlon64
+   # CFLAGS += -march=athlon-mp
+   # CFLAGS += -march=athlon-4
+ 
+@@ -453,14 +453,18 @@ HAVE_GETTIMEOFDAY = 1
+ 
+ # Select destination directory for your compiled program, manual page,
+ # and binary distribution.
+-ifndef PREFIX
+-PREFIX = /usr/local
+-endif
+-BINDIR = $(PREFIX)/bin
+-MANDIR = $(PREFIX)/share/man/man6
++#ifndef PREFIX
++#PREFIX = /usr/local
++#endif
++#BINDIR = $(PREFIX)/bin
++
++prefix ?= /usr
++exec_prefix ?= $(prefix)
++bindir ?= $(exec_prefix)/bin
++mandir ?= $(prefix)/share/man/man6
+ 
+ # This is the default path for ROMs and other data files.
+-XMAMEROOT = $(PREFIX)/share/x$(TARGET)
++XMAMEROOT = $(prefix)/share/x$(TARGET)
+ 
+ 
+ ###########################################################################
+@@ -474,10 +478,10 @@ XMAMEROOT = $(PREFIX)/share/x$(TARGET)
+ # understand gcc's inline assembly syntax, though you may still enable 
+ # X86_ASM_68000, etc., which are assembled by NASM.  You may also need to 
+ # use this for BeOS.
+-MY_CPU = i386_noasm
++# MY_CPU = i386_noasm
+ 
+ # IA64
+-# MY_CPU = ia64
++MY_CPU = ia64
+ 
+ # DEC Alpha
+ # MY_CPU = alpha
+@@ -727,7 +731,7 @@ CFLAGS += -DNDEBUG
+ # Uncomment the next lines to build xmame with a built-in debugger (only
+ # supported for X11 and SVGALib). Only enable this if you need it -- if you
+ # want to develop drivers, that is, since it slows down xmame considerably.
+-DEBUG = 1
++# DEBUG = 1
+ 
+ ifdef DEBUG
+ NAME=x$(TARGET)d

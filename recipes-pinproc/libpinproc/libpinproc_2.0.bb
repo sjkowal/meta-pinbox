@@ -14,3 +14,5 @@ S = "${WORKDIR}/git"
 inherit cmake pkgconfig 
 
 EXTRA_OECMAKE = "-DBUILD_SHARED_LIBS=ON -DPINPROC_BUILD_TOOLS=ON"
+
+RDEPENDS_${PN} = "libusb1 libftdi zlib yaml-cpp"
